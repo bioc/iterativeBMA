@@ -1,0 +1,290 @@
+%
+% NOTE -- ONLY EDIT THE .Rnw FILE!!!  The .tex file is
+% likely to be overwritten.
+%
+% \VignetteIndexEntry{The Iterative Bayesian Model Averaging Algorithm}
+%\VignetteDepends{BMA, leaps}
+%\VignetteSuggests{}
+%\VignetteKeywords{}
+%\VignettePackage{iterativeBMA}
+\documentclass[11pt]{article}
+
+\usepackage{times}
+\usepackage{hyperref}
+
+\usepackage[authoryear,round]{natbib}
+\usepackage{times}
+\usepackage{comment}
+
+\textwidth=6.2in
+\textheight=8.5in
+%\parskip=.3cm
+\oddsidemargin=.1in
+\evensidemargin=.1in
+\headheight=-.3in
+
+
+\newlength{\smallfigwidth}
+\setlength{\smallfigwidth}{6cm}
+
+\newcommand{\scscst}{\scriptscriptstyle}
+\newcommand{\scst}{\scriptstyle}
+
+\newcommand{\Rfunction}[1]{{\texttt{#1}}}
+\newcommand{\Robject}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\textsf{#1}}}
+\newcommand{\Rclass}[1]{{\textit{#1}}}
+
+\newcommand{\MAT}[1]{{\bf #1}}
+\newcommand{\VEC}[1]{{\bf #1}}
+
+\newcommand{\Amat}{{\MAT{A}}}
+
+%%notationally this is going to break
+\newcommand{\Emat}{{\MAT{E}}}
+\newcommand{\Xmat}{{\MAT{X}}}
+\newcommand{\Xvec}{{\VEC{X}}}
+\newcommand{\xvec}{{\VEC{x}}}
+
+
+\newcommand{\Zvec}{{\VEC{Z}}}
+\newcommand{\zvec}{{\VEC{z}}}
+
+\newcommand{\calG}{\mbox{${\cal G}$}}
+
+\bibliographystyle{plainnat}
+
+\title{The Iterative Bayesian Model Averaging Algorithm: an improved method
+       for gene selection and classification using microarray data}
+\author{Ka Yee Yeung, Roger E. Bumgarner, and Adrian E. Raftery}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+Classification is a supervised learning technique that in the context of 
+microarray analysis is most frequently used to identify genes whose 
+expression is correlated with specific phenotypes of the samples.  
+Typically, the interest is in identifying genes that are predictive 
+of disease.  In such cases, both the accuracy of the prediction and 
+the number of genes necessary to obtain a given accuracy is important.  
+In particular, methods that select a small number of relevant genes 
+and provide accurate classification of microarray samples aid in the 
+development of simpler diagnostic tests.  
+In addition, methods that adopt a weighted average approach over 
+multiple models have the potential to provide more accurate predictions 
+than methods that do not take model uncertainty into consideration.
+Hence, we developed the Bayesian Model Averaging (BMA) method for gene 
+selection and classification of microarray data \citep{Yeung2005}. 
+Typical gene selection and classification procedures ignore model 
+uncertainty and use a single set of relevant genes (model) to predict 
+the class labels. BMA is a multivariate technique that takes the interaction
+of variables (typically genes) and model uncertainty into consideration.
+In addition, the output of BMA contains posterior probabilities for 
+each prediction which can be useful in assessing the correctness of 
+a given call (diagnosis).
+
+\subsection{Bayesian Model Averaging (BMA)}  
+
+Bayesian Model Averaging (BMA) takes model uncertainty into 
+consideration by averaging over the posterior distributions of a 
+quantity of interest based on multiple models,
+weighted by their posterior model probabilities \citep{Raftery1995}.
+The posterior probability that a test sample belongs to a given class 
+is equal to the weighted average of the posterior probability that the 
+test sample belongs to the given class computed using the set of relevant 
+genes in model $M_k$ multiplied by the posterior probability of model
+$M_k$, summed over a set of ``good'' models $M_k$.
+
+\subsection{Iterative Bayesian Model Averaging (BMA) algorithm}  
+
+The BMA algorithm we have described is limited to data in which the
+number of variables is greater than the number of responses. In the case
+of classifying samples using microarray data, there are typically thousands
+or tens of thousands of genes (variables) under a few dozens samples 
+(responses).
+
+In this package, the iterative BMA algorithm for the binary classification
+problem is implemented.
+In the binary iterative BMA algorithm, we start by ranking the genes in 
+order using a univariate measure such as the ratio of between-group 
+to within-group sum of squares (BSS/WSS) \citep{Dudoit2002}.
+In this initial preprocessing step, genes with large BSS/WSS 
+ratios (i.e., genes with relatively large variation between classes 
+and relatively small variation within classes) receive high rankings.  
+We then apply the traditional BMA algorithm to the $maxNvar$ top ranked genes,
+where we used $maxNvar=30$.  This is because the traditional BMA algorithm 
+employs the leaps and bounds algorithm that is inefficient for 
+numbers of genes (variables) much greater than 30.
+Then genes to which the BMA algorithm gives low posterior 
+probabilities of being in the predictive model are removed.
+In our study, we used 1\% as the threshold and removed genes with 
+posterior probabilities $<$ 1\%.
+Suppose $m$ genes are removed. The next $m$ genes from the rank 
+ordered BSS/WSS ratios are added back to the set of genes so that 
+we maintain a window of $maxNvar$ genes and apply the traditional 
+BMA algorithm again.
+These steps of gene swaps and iterative applications of BMA are 
+continued until all genes are subsequently considered.
+
+\section{Some examples}
+ 
+The R packages {\tt BMA}, {\tt leaps} and {\tt Biobase} are required 
+to run the key commands in this package.  
+
+<<Setup, results=hide>>=
+library ("Biobase")
+library("BMA")
+library("iterativeBMA")
+@
+
+An adapted leukemia dataset \citep{Golub1999} is
+included for illustration purposes.  The adapted leukemia dataset consists
+of the top 100 genes selected using the BSS/WSS statistic. The training
+set consists of 38 samples, while the test set consists of 34 samples.
+
+<<getTrainData>>=
+## use the sample training data. The {\it ExpressionSet} is called trainData.
+data(trainData)
+## the class vector (0,1) is called trainClass
+data(trainClass)
+@
+
+The function {\tt iterateBMAglm.train} selects relevant variables by
+iteratively applying the {\tt bic.glm} function from the {\tt BMA} package.
+The data is assumed to consist of two classes. 
+Logistic regression is used for classification.
+In the training phase, only the training dataset and the corresponding
+class labels are required as input.  The parameter $p$ represents the
+number of top BSS/WSS ranked genes used in the iterative process.
+Our studies showed that a relatively large $p$ typically yields good results
+\citep{Yeung2005}.  In this example, there are 100 genes in the sample
+training set, and we used $p$= 100 in the iterative BMA algorithm.
+
+<<trainingStep>>=
+## training phase: select relevant genes
+ret.bic.glm <- iterateBMAglm.train (train.expr.set=trainData, trainClass, p=100)
+ret.bic.glm$namesx
+ret.bic.glm$probne0
+
+## get the selected genes with probne0 > 0
+ret.gene.names <- ret.bic.glm$namesx[ret.bic.glm$probne0 > 0]
+ret.gene.names
+
+## get the posterior probabilities for the selected models
+ret.bic.glm$postprob
+@
+
+The {\tt iterateBMAglm.train} function returns an object of 
+class {\tt bic.glm} from the last iteration of {\tt bic.glm}.  
+The object is a list consisting of many components.  Here are some
+of the relevant components:
+\begin{itemize}
+\item {\tt namesx}: the names of the variables in the last iteration of 
+              {\tt bic.glm}.
+\item {\tt postprob}: the posterior probabilities of the models selected.
+                      The length of this vector indicates the number of
+		      models selected by BMA.
+\item {\tt which}: a logical matrix with one row per model and one column per 
+             variable indicating whether that variable is in the model.
+\item {\tt probne0}: the posterior probability that each variable is non-zero 
+               (in percent) in the last iteration of {\tt bic.glm}.  
+	       The length of this vector should be identical
+	       to that of {\tt namesx}.
+\item {\tt mle}: matrix with one row per model and one column per variable 
+      	         giving the maximum likelihood estimate of each 
+		 coefficient for each model.
+\end{itemize}
+
+In the training phase, the relevant variables (genes) are selected using
+the training data and the corresponding class labels.
+In the test phase, we use the selected variables (genes), the
+selected models, and the corresponding posterior probabilities to
+compute the predicted posterior probabilities that each sample 
+belongs to class 1.
+The predicted posterior probability of a test sample is equal to the 
+weighted average of the predicted probability of the test sample
+under each selected model, multiplied by the predicted posterior probability
+of each model. Note that in this case, a model consists of a set
+of genes, and different models can potentially have overlapping genes.
+The posterior probability of a gene is equal to the sum of the
+posterior probabilities of all the models that the gene belongs to.
+
+<<testStep>>=
+## The test ExpressionSet is called testData.
+data (testData)
+
+## get the subset of test data with the genes from the last iteration of bic.glm
+curr.test.dat <- t(exprs(testData)[ret.gene.names,])
+
+## to compute the predicted probabilities for the test samples
+y.pred.test <- apply (curr.test.dat, 1, bma.predict, postprobArr=ret.bic.glm$postprob, mleArr=ret.bic.glm$mle)
+
+## compute the Brier Score if the class labels of the test samples are known
+data (testClass)
+brier.score (y.pred.test, testClass)
+@
+
+The Brier Score computes the sum of squares of the differences 
+         between the true class and the predicted probability over all 
+         test samples. If the predicted probabilities are constrained 
+         to equal to 0 or 1, the Brier Score is equal to the total 
+         number of classification errors.
+
+The function {\tt iterateBMAglm.train.predict} combines the training
+and prediction phases, and returns the predicted posterior probabilities
+that each test sample belongs to class 1.
+
+<<trainPredictStep>>=
+## train and predict
+ret.vec <- iterateBMAglm.train.predict (train.expr.set=trainData, test.expr.set=testData, trainClass, p=100)
+
+## compute the Brier Score
+data (testClass)
+brier.score (ret.vec, testClass)
+@
+
+The function {\tt iterateBMAglm.train.predict.test} combines the training,
+prediction and test phases, and returns a list consisting of the
+numbers of selected genes and models using the training data, the number
+of classification errors and the Brier Score on the test set.
+
+<<trainPredictTestStep>>=
+iterateBMAglm.train.predict.test (train.expr.set=trainData, test.expr.set=testData, trainClass, testClass, p=100)
+@
+
+This package also contains the {\tt imageplot.iterate.bma} function,
+which allows us to create a heatmap-style image to visualize the
+selected genes and models (see Figure~\ref{fig:image}).
+
+\begin{figure}[hp]
+  \centering
+<<imageplot, fig=TRUE, echo=FALSE>>=
+ imageplot.iterate.bma (ret.bic.glm)
+@
+%%\includegraphics{iterateBMA-imageplot}
+\caption{\label{fig:image}%
+An image plot showing the selected genes and models.}
+\end{figure}
+
+In Figure~\ref{fig:image}, the BMA selected variables are shown on the vertical
+axis, and the BMA selected models are shown on the horizontal axis. 
+The variables (genes) are sorted in decreasing order of the posterior 
+probability that the variable is not equal to 0 ({\tt probne0}) from top to 
+bottom.  The models are sorted in decreasing order of the
+model posterior probability ({\tt postprob}) from left to right.
+
+\section*{Acknowledgements}
+
+We would like to thank Drs. Ian Painter and Chris Volinsky.
+Yeung is supported by NIH-NCI 1K25CA106988.  
+Bumgarner is funded by NIH-NIAID grants 5P01AI052106, 1R21AI052028 and 1U54AI057141, NIH-NIEHA 1U19ES011387, NIH-NHLBI grants 5R01HL072370 and 1P50HL073996.  
+Raftery is supported by NIH 8R01EB002137 and ONR N00014-01-10745. 
+
+\bibliography{iterativeBMA}
+
+
+\end{document}
+

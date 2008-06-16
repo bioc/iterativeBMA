@@ -1,0 +1,18 @@
+Package: iterativeBMA
+Type: Package
+Title: The Iterative Bayesian Model Averaging (BMA) algorithm
+Version: 0.1.0
+Date: 2005-2-7
+Author: Ka Yee Yeung, University of Washington, Seattle, WA, with
+	contributions from Adrian Raftery and Ian Painter
+Maintainer: Ka Yee Yeung <kayee@u.washington.edu>
+Description: The iterative Bayesian Model Averaging (BMA) algorithm
+	     is a variable selection and classification algorithm
+	     with an application of classifying 2-class microarray samples,
+	     as described in Yeung, Bumgarner and Raftery (Bioinformatics
+	     2005, 21: 2394-2402).
+Depends: BMA, leaps, Biobase
+License: GPL version 2 or higher
+URL: http://faculty.washington.edu/kayee/research.html
+biocViews: Microarray, Statistics, Classification
+

@@ -1,0 +1,8 @@
+export (BssWssFast,
+        bma.predict,
+        brier.score,
+        imageplot.iterate.bma,
+        iterateBMAglm.train,
+        iterateBMAglm.train.predict,
+        iterateBMAglm.train.predict.test,
+        iterateBMAglm.wrapper)
