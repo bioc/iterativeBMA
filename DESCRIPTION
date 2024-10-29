@@ -1,7 +1,7 @@
 Package: iterativeBMA
 Type: Package
 Title: The Iterative Bayesian Model Averaging (BMA) algorithm
-Version: 1.64.0
+Version: 1.65.0
 Date: 2009-7-22
 Author: Ka Yee Yeung, University of Washington, Seattle, WA, with
         contributions from Adrian Raftery and Ian Painter
